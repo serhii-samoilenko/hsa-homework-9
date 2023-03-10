@@ -2,7 +2,9 @@ version: '3.9'
 services:
 
   demo:
-    image: ssamoilenko/kscript2
+    image: ssamoilenko/kscript
+    build:
+      dockerfile: Dockerfile
     container_name: demo
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -10,11 +12,6 @@ services:
       - ./:/workdir
     command:
       - demo.kts
-#    entrypoint:
-#      - /bin/sh
-#      - -c
-#      - "KOTLIN_HOME=/opt/kotlinc PATH=/opt/kotlinc/bin:$PATH kscript demo.kts"
-#      - "kotlinc -cp <classpath required by the script definition> -script demo.kts"
     depends_on:
       mysql:
         condition: service_healthy
@@ -27,7 +24,6 @@ services:
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_DATABASE=test
     volumes:
-#      - ./mysql/conf.d:/etc/mysql/conf.d
       - ./mysql.cnf:/etc/mysql/conf.d/mysql.cnf
     ports:
       - '3306:3306'

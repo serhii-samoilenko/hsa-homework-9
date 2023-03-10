@@ -1,16 +1,16 @@
-FROM alpine:latest
+FROM openjdk:19-jdk-alpine
 
 ARG KSCRIPT_VERSION=4.2.1
 ARG KOTLIN_VERSION=1.8.10
 
+# Install bash
+RUN apk add --no-cache bash
+
 RUN \
-# Install bash & Java \
-apk add bash openjdk11 && \
-\
 # Create temp dir
-cd $(mktemp -d) && \
+    cd $(mktemp -d) && \
 \
-# Install kscript \
+# Install kscript
     wget https://github.com/holgerbrandl/kscript/releases/download/v${KSCRIPT_VERSION}/kscript-${KSCRIPT_VERSION}-bin.zip -q -O - | \
     unzip - && \
     mv kscript-${KSCRIPT_VERSION}/bin/* /usr/local/bin && \
@@ -25,7 +25,7 @@ cd $(mktemp -d) && \
 # Done
     rm -rf $PWD
 
-WORKDIR /w
+WORKDIR /workdir
 
 ENTRYPOINT KOTLIN_HOME=/opt/kotlinc \
     PATH=/opt/kotlinc/bin:$PATH \
