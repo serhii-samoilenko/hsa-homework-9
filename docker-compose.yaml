@@ -1,0 +1,38 @@
+version: '3.9'
+services:
+
+  demo:
+    image: ssamoilenko/kscript2
+    container_name: demo
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.cache:/root
+      - ./:/workdir
+    command:
+      - demo.kts
+#    entrypoint:
+#      - /bin/sh
+#      - -c
+#      - "KOTLIN_HOME=/opt/kotlinc PATH=/opt/kotlinc/bin:$PATH kscript demo.kts"
+#      - "kotlinc -cp <classpath required by the script definition> -script demo.kts"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=test
+    volumes:
+#      - ./mysql/conf.d:/etc/mysql/conf.d
+      - ./mysql.cnf:/etc/mysql/conf.d/mysql.cnf
+    ports:
+      - '3306:3306'
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
