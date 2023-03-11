@@ -6,9 +6,14 @@ import java.time.LocalDate
 import java.util.UUID
 import kotlin.random.Random
 
-DriverManager.setLoginTimeout(60)
-println("Opening connection to MySQL...")
-var connection: Connection = DriverManager.getConnection("jdbc:mysql://mysql:3306/test", "root", "root")
+object Database {
+    init {
+        DriverManager.setLoginTimeout(60)
+        println("Opening connection to MySQL...")
+    }
+}
+
+val connection: Connection = DriverManager.getConnection("jdbc:mysql://mysql:3306/test", "root", "root")
 
 fun benchmarkSelections(count: Int): Long {
     val start = System.currentTimeMillis()
@@ -26,6 +31,13 @@ fun execute(sql: String): Long {
     }
     val end = System.currentTimeMillis()
     return end - start
+}
+
+fun tryExecute(sql: String) = try {
+    execute(sql)
+} catch (e: Exception) {
+    println("Ignoring exception: ${e.message}")
+    null
 }
 
 fun query(sql: String): List<Map<String, Any>> {

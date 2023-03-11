@@ -51,19 +51,19 @@ val queryCount = 20
 println("\nRunning $queryCount queries per test")
 
 println("\n 1. Without index")
-try {
-    execute("DROP INDEX persons_birthdate ON persons")
-} catch (_: Exception) {
-}
+tryExecute("DROP INDEX persons_birthdate ON persons")
+benchmarkSelections(2) // Warmup
 benchmarkSelections(queryCount).also { time -> println("Benchmark time: $time ms") }
 
 println("\n 2. With BTREE index")
 execute("CREATE INDEX persons_birthdate ON persons (birthdate) USING BTREE").also { time -> println("Index created in: $time ms") }
+benchmarkSelections(20) // Warmup
 benchmarkSelections(queryCount).also { time -> println("Benchmark time: $time ms") }
 
 println("\n 3. With HASH index")
 execute("DROP INDEX persons_birthdate ON persons")
 execute("CREATE INDEX persons_birthdate ON persons (birthdate) USING HASH").also { time -> println("Index created in: $time ms") }
+benchmarkSelections(20) // Warmup
 benchmarkSelections(queryCount).also { time -> println("Benchmark time: $time ms") }
 
 println("Done!")
