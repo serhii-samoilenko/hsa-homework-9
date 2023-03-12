@@ -20,14 +20,24 @@ class Docker {
     fun restartContainer(containerName: String) {
         println("Restarting $containerName...")
         dockerClient.restartContainerCmd(containerName).exec()
+        waitForContainer(containerName, 60)
+    }
+
+    fun waitForContainer(containerName: String, timeout: Int) {
         print("Waiting for $containerName to become healthy...")
+        var count = 0
         while (true) {
+            if (count > timeout) {
+                println(" Fail")
+                throw Exception("Timeout waiting for $containerName to become healthy")
+            }
             if (waitForContainer(containerName)) {
-                println()
+                println(" OK")
                 return
             } else {
                 print('.')
                 Thread.sleep(1000)
+                count++
             }
         }
     }
