@@ -22,13 +22,13 @@ class Benchmark(private val connectionPool: ConnectionPool) {
         val startTime = System.currentTimeMillis()
         val endTime = startTime + duration.inWholeMilliseconds
         val executor = Executors.newFixedThreadPool(concurrency) as ThreadPoolExecutor
-        val delay = rps?.let { 1000 / it }
+        val rateLimiter = rps?.let { RateLimiter(it) }
 
         while (System.currentTimeMillis() < endTime) {
             val totalCount = executor.activeCount + executor.queue.size
             val capacity = concurrency - totalCount
             for (i in 0 until capacity) {
-                delay?.let { Thread.sleep(it.toLong()) }
+                rateLimiter?.limit()
                 executor.submit(taskSupplier())
             }
         }
@@ -38,10 +38,10 @@ class Benchmark(private val connectionPool: ConnectionPool) {
         return Result(executor.completedTaskCount, actuaTime.milliseconds)
     }
 
-    fun benchmarkSelections(duration: Duration, concurrency: Int, querySupplier: () -> String) =
+    fun benchmarkSelects(duration: Duration, concurrency: Int, querySupplier: () -> String) =
         benchmark(duration, concurrency, { Runnable { query(querySupplier()) } })
 
-    fun benchmarkInserts(duration: Duration, concurrency: Int, rps: Double, querySupplier: () -> String) =
+    fun benchmarkInserts(duration: Duration, concurrency: Int, rps: Double?, querySupplier: () -> String) =
         benchmark(duration, concurrency, { Runnable { execute(querySupplier()) } }, rps)
 
     fun execute(sql: String): Duration {
@@ -76,6 +76,22 @@ class Benchmark(private val connectionPool: ConnectionPool) {
     fun querySingle(sql: String): Map<String, Any> = query(sql).first()
 
     fun querySingleValue(sql: String): Any = querySingle(sql).values.first()
+}
+
+class RateLimiter(private val rps: Double) {
+    private var lastCallTime: Long = 0
+    fun limit() {
+        val currentTime = System.nanoTime()
+        val timeSinceLastCall = currentTime - lastCallTime
+        val timeToWait = 1 / rps * 1000000000 // convert rps to nanoseconds
+        val timeLeftToWait = (timeToWait - timeSinceLastCall).toLong()
+        if (timeLeftToWait > 0) {
+            val waitMs = timeLeftToWait / 1000000
+            val waitNs = (timeLeftToWait % 1000000).toInt()
+            Thread.sleep(waitMs, waitNs)
+        }
+        lastCallTime = System.nanoTime()
+    }
 }
 
 fun randomName(): String = UUID.randomUUID().toString()

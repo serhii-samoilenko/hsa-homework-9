@@ -72,10 +72,10 @@ with(benchmark) {
     }
 
     fun benchmarkSequence(duration: Duration, warmupDuration: Duration, concurrency: Int) {
-        benchmarkSelections(warmupDuration, 1) { exactMatchSql() }
-        benchmarkSelections(duration, concurrency) { exactMatchSql() }.also { result -> println("Exact match: $result") }
-        benchmarkSelections(duration, concurrency) { smallRangeSql() }.also { result -> println("Small range: $result") }
-        benchmarkSelections(duration, concurrency) { largeRangeSql() }.also { result -> println("Large range: $result") }
+        benchmarkSelects(warmupDuration, 1) { exactMatchSql() }
+        benchmarkSelects(duration, concurrency) { exactMatchSql() }.also { result -> println("Exact match: $result") }
+        benchmarkSelects(duration, concurrency) { smallRangeSql() }.also { result -> println("Small range: $result") }
+        benchmarkSelects(duration, concurrency) { largeRangeSql() }.also { result -> println("Large range: $result") }
     }
 
     val duration = 1.minutes
