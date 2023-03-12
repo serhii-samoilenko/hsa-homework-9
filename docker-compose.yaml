@@ -1,11 +1,25 @@
 version: '3.9'
 services:
 
-  demo:
+  index-demo:
     image: ssamoilenko/kscript
     build:
       dockerfile: Dockerfile
-    container_name: demo
+    container_name: index-demo
+    volumes:
+      - ./.cache:/root
+      - ./src:/workdir
+    command:
+      - index-demo.kts
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  flush-demo:
+    image: ssamoilenko/kscript
+    build:
+      dockerfile: Dockerfile
+    container_name: flush-demo
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./.cache:/root

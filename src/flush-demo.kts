@@ -1,7 +1,7 @@
 #!/usr/bin/env kscript
 @file:Import("connection.kt")
 
-println("Starting MySQL demo...")
+println("Starting MySQL Flush demo...")
 
 /*
  * Preparing the database
@@ -18,11 +18,13 @@ execute(
     """.trimIndent(),
 )
 
-val maxCount = 40_000_000
+val insertsCount = 10_000
 val chunkSize = 1000
 
 println("Counting existing records...")
-val count = (querySingleValue("SELECT COUNT(*) FROM persons") as Long).toInt()
+
+
+
 
 when {
     count > maxCount -> {

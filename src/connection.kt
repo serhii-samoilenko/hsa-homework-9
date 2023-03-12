@@ -1,4 +1,6 @@
 @file:DependsOn("mysql:mysql-connector-java:8.0.32")
+@file:DependsOn("com.zaxxer:HikariCP:5.0.1")
+@file:DependsOn("com.google.guava:guava-rate-limiter:15.0-atlassian-1")
 
 import java.sql.Connection
 import java.sql.DriverManager
@@ -15,11 +17,9 @@ object Database {
 
 val connection: Connection = DriverManager.getConnection("jdbc:mysql://mysql:3306/test", "root", "root")
 
-fun benchmarkSelections(count: Int): Long {
+fun benchmarkSelections(count: Int, querySupplier: () -> String): Long {
     val start = System.currentTimeMillis()
-    (1..count).forEach { _ ->
-        query("SELECT * FROM persons WHERE birthdate = '${randomDate()}' LIMIT 1000")
-    }
+    (1..count).forEach { _ -> query(querySupplier()) }
     val end = System.currentTimeMillis()
     return end - start
 }
@@ -59,4 +59,4 @@ fun querySingleValue(sql: String): Any = querySingle(sql).values.first()
 
 fun randomName(): String = UUID.randomUUID().toString()
 
-fun randomDate(): String = LocalDate.now().minusDays(Random.nextLong(365 * 100)).toString()
+fun randomDate(): LocalDate = LocalDate.now().minusDays(Random.nextLong(365 * 100))
