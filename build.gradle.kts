@@ -13,7 +13,8 @@ dependencies {
     implementation("io.github.kscripting:kscript-annotations:1.5.0")
     implementation("mysql:mysql-connector-java:8.0.32")
     implementation("com.zaxxer:HikariCP:5.0.1")
-    implementation("com.google.guava:guava-rate-limiter:15.0-atlassian-1")
+    implementation("com.github.docker-java:docker-java-core:3.3.0")
+    implementation("com.github.docker-java:docker-java-transport-zerodep:3.3.0")
 }
 
 sourceSets.getByName("main").java.srcDirs("src")

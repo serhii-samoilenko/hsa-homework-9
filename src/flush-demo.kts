@@ -1,5 +1,5 @@
 #!/usr/bin/env kscript
-@file:Import("connection.kt")
+@file:Import("Benchmark.kt")
 
 println("Starting MySQL Flush demo...")
 
