@@ -3,7 +3,9 @@
 @file:Import("Docker.kt")
 @file:Import("Benchmark.kt")
 
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 println("Starting MySQL Indexing demo...")
 val docker = Docker()
@@ -76,23 +78,23 @@ with(benchmark) {
         benchmarkSelections(duration, concurrency) { largeRangeSql() }.also { result -> println("Large range: $result") }
     }
 
-    val duration = Duration.ofMinutes(1)
-    val warmupDuration = Duration.ofSeconds(10)
+    val duration = 1.minutes
+    val warmupDuration = 10.seconds
     val concurrency = 10
 
     println("\nRunning benchmark for $duration with $concurrency threads and $warmupDuration warmup")
 
     println("\n 1. Without index")
-    tryExecute("DROP INDEX persons_birthdate ON persons").also { time -> println("Index dropped in: $time ms") }
+    tryExecute("DROP INDEX persons_birthdate ON persons").also { time -> println("Index dropped in: $time") }
     benchmarkSequence(duration, warmupDuration, concurrency)
 
     println("\n 2. With BTREE index")
-    execute("CREATE INDEX persons_birthdate ON persons (birthdate) USING BTREE").also { time -> println("Index created in: $time ms") }
+    execute("CREATE INDEX persons_birthdate ON persons (birthdate) USING BTREE").also { time -> println("Index created in: $time") }
     benchmarkSequence(duration, warmupDuration, concurrency)
 
     println("\n 3. With HASH index")
     execute("DROP INDEX persons_birthdate ON persons")
-    execute("CREATE INDEX persons_birthdate ON persons (birthdate) USING HASH").also { time -> println("Index created in: $time ms") }
+    execute("CREATE INDEX persons_birthdate ON persons (birthdate) USING HASH").also { time -> println("Index created in: $time") }
     benchmarkSequence(duration, warmupDuration, concurrency)
 
     println("Done!")
