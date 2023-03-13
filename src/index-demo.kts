@@ -10,12 +10,15 @@ import kotlin.time.Duration.Companion.seconds
 println("Starting MySQL Indexing demo...")
 val docker = Docker()
 val dbHost = if (docker.isRunningInDocker()) "mysql" else "localhost"
-val connectionPool = ConnectionPool("jdbc:mysql://$dbHost:3306/test", "root", "root", 10)
-val benchmark = Benchmark(connectionPool)
+val concurrency = 10
+val connectionPool = ConnectionPool("jdbc:mysql://$dbHost:3306/test", "root", "root", concurrency)
+val benchmark = Benchmark(
+    connectionPool = connectionPool,
+    repeats = 1,
+    cooldown = 5.seconds,
+)
 
 with(benchmark) {
-
-    docker.waitForContainer("mysql", 60)
 
     /*
      * Preparing the database
@@ -61,28 +64,33 @@ with(benchmark) {
      * Running queries
      */
 
-    fun exactMatchSql() = "SELECT * FROM persons WHERE birthdate = '${randomDate()}' LIMIT 1000"
+    fun exactMatchSql() = "SELECT * FROM persons WHERE birthdate = '${randomDate()}' LIMIT 100000"
+
+    fun greaterThanSql() = with(randomDate()) {
+        "SELECT * FROM persons WHERE birthdate > '$this' LIMIT 100000"
+    }
 
     fun smallRangeSql() = with(randomDate()) {
-        "SELECT * FROM persons WHERE birthdate BETWEEN '$this' AND '${plusDays(10)}' LIMIT 1000"
+        "SELECT * FROM persons WHERE birthdate BETWEEN '$this' AND '${plusDays(10)}' LIMIT 100000"
     }
 
     fun largeRangeSql() = with(randomDate()) {
-        "SELECT * FROM persons WHERE birthdate BETWEEN '$this' AND '${plusDays(1000)}' LIMIT 1000"
+        "SELECT * FROM persons WHERE birthdate BETWEEN '$this' AND '${plusDays(1000)}' LIMIT 100000"
     }
 
     fun benchmarkSequence(duration: Duration, warmupDuration: Duration, concurrency: Int) {
         benchmarkSelects(warmupDuration, 1) { exactMatchSql() }
-        benchmarkSelects(duration, concurrency) { exactMatchSql() }.also { result -> println("Exact match: $result") }
-        benchmarkSelects(duration, concurrency) { smallRangeSql() }.also { result -> println("Small range: $result") }
-        benchmarkSelects(duration, concurrency) { largeRangeSql() }.also { result -> println("Large range: $result") }
+        benchmarkSelects(duration, concurrency) { exactMatchSql() }.also { println("Exact match: $it") }
+        benchmarkSelects(duration, concurrency) { greaterThanSql() }.also { println("Greater then: $it") }
+        benchmarkSelects(duration, concurrency) { smallRangeSql() }.also { println("Small range: $it") }
+        benchmarkSelects(duration, concurrency) { largeRangeSql() }.also { println("Large range: $it") }
     }
 
     val duration = 1.minutes
     val warmupDuration = 10.seconds
-    val concurrency = 10
 
-    println("\nRunning benchmark for $duration with $concurrency threads and $warmupDuration warmup")
+    println("\nRunning benchmark: ${benchmark.repeats} repeats, ${benchmark.cooldown} cooldown between repeats")
+    println("Each run: $duration with $concurrency threads and $warmupDuration warmup")
 
     println("\n 1. Without index")
     tryExecute("DROP INDEX persons_birthdate ON persons").also { time -> println("Index dropped in: $time") }
@@ -92,9 +100,14 @@ with(benchmark) {
     execute("CREATE INDEX persons_birthdate ON persons (birthdate) USING BTREE").also { time -> println("Index created in: $time") }
     benchmarkSequence(duration, warmupDuration, concurrency)
 
-    println("\n 3. With HASH index")
+    println("\n 3. With HASH index and no adaptive hash index")
     execute("DROP INDEX persons_birthdate ON persons")
+    execute("SET GLOBAL innodb_adaptive_hash_index = OFF").also { time -> println("Option set in: $time") }
     execute("CREATE INDEX persons_birthdate ON persons (birthdate) USING HASH").also { time -> println("Index created in: $time") }
+    benchmarkSequence(duration, warmupDuration, concurrency)
+
+    println("\n 4. With HASH index and with adaptive hash index")
+    execute("SET GLOBAL innodb_adaptive_hash_index = ON").also { time -> println("Option set in: $time") }
     benchmarkSequence(duration, warmupDuration, concurrency)
 
     println("Done!")

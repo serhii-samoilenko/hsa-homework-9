@@ -15,6 +15,8 @@ dependencies {
     implementation("com.zaxxer:HikariCP:5.0.1")
     implementation("com.github.docker-java:docker-java-core:3.3.0")
     implementation("com.github.docker-java:docker-java-transport-zerodep:3.3.0")
+    implementation("com.google.guava:guava:31.1-jre")
+
 }
 
 sourceSets.getByName("main").java.srcDirs("src")

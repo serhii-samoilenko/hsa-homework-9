@@ -3,6 +3,9 @@ FROM openjdk:19-jdk-alpine
 ARG KSCRIPT_VERSION=4.2.1
 ARG KOTLIN_VERSION=1.8.10
 
+# Install bash
+RUN apk add --no-cache bash
+
 RUN \
 # Create temp dir
     cd $(mktemp -d) && \
@@ -21,9 +24,6 @@ RUN \
 \
 # Done
     rm -rf $PWD
-
-# Install utils
-RUN apk add --no-cache bash curl
 
 WORKDIR /workdir
 

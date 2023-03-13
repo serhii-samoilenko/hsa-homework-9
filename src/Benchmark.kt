@@ -1,3 +1,7 @@
+@file:DependsOn("com.google.guava:guava:31.1-jre")
+
+import com.google.common.util.concurrent.RateLimiter
+import java.sql.ResultSet
 import java.time.LocalDate
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -8,7 +12,12 @@ import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
-class Benchmark(private val connectionPool: ConnectionPool) {
+@Suppress("UnstableApiUsage")
+class Benchmark(
+    private val connectionPool: ConnectionPool,
+    val repeats: Int = 1,
+    val cooldown: Duration = Duration.ZERO,
+) {
 
     data class Result(
         val count: Long,
@@ -18,17 +27,22 @@ class Benchmark(private val connectionPool: ConnectionPool) {
         override fun toString() = "$count ops in $duration - ${opsPerSecond()} ops/sec"
     }
 
-    fun benchmark(duration: Duration, concurrency: Int, taskSupplier: () -> Runnable, rps: Double? = null): Result {
+    private fun benchmark(
+        duration: Duration,
+        concurrency: Int,
+        taskSupplier: () -> Runnable,
+        rps: Double? = null,
+    ): Result {
         val startTime = System.currentTimeMillis()
         val endTime = startTime + duration.inWholeMilliseconds
         val executor = Executors.newFixedThreadPool(concurrency) as ThreadPoolExecutor
-        val rateLimiter = rps?.let { RateLimiter(it) }
+        val rateLimiter = rps?.let { RateLimiter.create(it) }
 
         while (System.currentTimeMillis() < endTime) {
             val totalCount = executor.activeCount + executor.queue.size
-            val capacity = concurrency - totalCount
+            val capacity = concurrency - totalCount - 1
             for (i in 0 until capacity) {
-                rateLimiter?.limit()
+                rateLimiter?.acquire()
                 executor.submit(taskSupplier())
             }
         }
@@ -38,11 +52,24 @@ class Benchmark(private val connectionPool: ConnectionPool) {
         return Result(executor.completedTaskCount, actuaTime.milliseconds)
     }
 
-    fun benchmarkSelects(duration: Duration, concurrency: Int, querySupplier: () -> String) =
-        benchmark(duration, concurrency, { Runnable { query(querySupplier()) } })
+    fun benchmarkSelects(duration: Duration, concurrency: Int, querySupplier: () -> String): List<Result> =
+        (1..repeats).map {
+            val result = benchmark(duration, concurrency, { Runnable { query(querySupplier()) } })
+            Thread.sleep(cooldown.inWholeMilliseconds)
+            result
+        }
 
-    fun benchmarkInserts(duration: Duration, concurrency: Int, rps: Double?, querySupplier: () -> String) =
-        benchmark(duration, concurrency, { Runnable { execute(querySupplier()) } }, rps)
+    fun benchmarkInserts(
+        duration: Duration,
+        concurrency: Int,
+        rps: Double?,
+        querySupplier: () -> String,
+    ): List<Result> =
+        (1..repeats).map {
+            val result = benchmark(duration, concurrency, { Runnable { execute(querySupplier()) } }, rps)
+            Thread.sleep(cooldown.inWholeMilliseconds)
+            result
+        }
 
     fun execute(sql: String): Duration {
         val start = System.currentTimeMillis()
@@ -60,7 +87,22 @@ class Benchmark(private val connectionPool: ConnectionPool) {
         null
     }
 
-    fun query(sql: String): List<Map<String, Any>> {
+    fun query(sql: String) {
+        connectionPool.connection().use { connection ->
+            connection.createStatement(
+                ResultSet.TYPE_FORWARD_ONLY,
+                ResultSet.CONCUR_READ_ONLY,
+            ).apply { fetchSize = 2000 }
+                .executeQuery(sql).use { rs ->
+                    while (rs.next()) {
+                        // do nothing
+                    }
+                    rs.close()
+                }
+        }
+    }
+
+    fun queryData(sql: String): List<Map<String, Any>> {
         connectionPool.connection().use { connection ->
             connection.createStatement().executeQuery(sql).use { rs ->
                 val columns = (1..rs.metaData.columnCount).map { rs.metaData.getColumnName(it) }
@@ -68,30 +110,13 @@ class Benchmark(private val connectionPool: ConnectionPool) {
                 while (rs.next()) {
                     rows.add(columns.associateWith { rs.getObject(it) })
                 }
+                rs.close()
                 return rows
             }
         }
     }
 
-    fun querySingle(sql: String): Map<String, Any> = query(sql).first()
-
-    fun querySingleValue(sql: String): Any = querySingle(sql).values.first()
-}
-
-class RateLimiter(private val rps: Double) {
-    private var lastCallTime: Long = 0
-    fun limit() {
-        val currentTime = System.nanoTime()
-        val timeSinceLastCall = currentTime - lastCallTime
-        val timeToWait = 1 / rps * 1000000000 // convert rps to nanoseconds
-        val timeLeftToWait = (timeToWait - timeSinceLastCall).toLong()
-        if (timeLeftToWait > 0) {
-            val waitMs = timeLeftToWait / 1000000
-            val waitNs = (timeLeftToWait % 1000000).toInt()
-            Thread.sleep(waitMs, waitNs)
-        }
-        lastCallTime = System.nanoTime()
-    }
+    fun querySingleValue(sql: String): Any = queryData(sql).first().values.first()
 }
 
 fun randomName(): String = UUID.randomUUID().toString()
