@@ -60,7 +60,7 @@ Most interesting is that the GREATER THEN query worked best with no index at all
 
 ### InnoDB flush types benchmark
 
-## First run
+#### First run
 
 | Option value / ops/sec             | **100 RPS** | **1K RPS** | **10K RPS** | **Unlimited** |
 |:-----------------------------------|:------------|:-----------|:------------|:--------------|
@@ -68,7 +68,7 @@ Most interesting is that the GREATER THEN query worked best with no index at all
 | 1 - Each transaction commit        | 100.025     | 999.65     | 1355.561    | 1242.877      |
 | 2 - Once per second, log on commit | 100.025     | 999.7      | 1574.956    | 1716.278      |
 
-## Second run
+#### Second run
 
 | Option value / ops/sec             | **1.2K RPS** | **1.5K RPS** | **2K RPS** | **Unlimited** |
 |:-----------------------------------|:-------------|:-------------|:-----------|:--------------|
